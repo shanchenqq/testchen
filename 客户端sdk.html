@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Title</title>
+    <script src="https://aiedu.qcloud.com/soe/TencentSOE-0.2.2.js"></script>
+</head>
+
+<body>
+    <div>
+        <label>
+            SecretId：
+            <input id="sid" value="AKID51mJenkU1KPHvMZ5PXQ4Ur2yqdFfsvmR" />
+        </label><br>
+        <label>
+            SecretKey：
+            <input id="skey" value="VtaSEvWzFHKBpGTTItGPMxJRM4Yo591e" />
+        </label><br>
+        <button id="start">start</button>
+        <button id="stop">stop</button>
+        <p id="result">结果</p>
+
+        <button id="upload">upload</button>
+
+        <br />
+        <button id="listen">试听</button>
+        <audio id="audio">
+            <source src="" type="audio/mp3" />
+        </audio>
+    </div>
+    <script>
+        const sid = document.getElementById('sid')
+        const skey = document.getElementById('skey')
+        const startbtn = document.querySelector('#start')
+        const stopbtn = document.querySelector('#stop')
+        const result = document.querySelector('#result')
+
+        const uploadbtn = document.querySelector('#upload')
+
+        const listenBtn = document.querySelector('#listen')
+
+        //A private conversation私人谈话
+        const str = `Last week I went to the theatre. I had a very good seat. The play was very interesting. I did not enjoy it.
+                    A young man and a young woman were sitting behind me. They were talking loudly. I got very angry.
+                    I could not hear the actors. I turned round. I looked at the man and the woman angrily.
+                    They did not pay any attention. In the end, I could not bear it. I turned round again.
+                    'I can't hear a word!' I said angrily.
+                    'It's none of your business,' the young man said rudely. 'This is a private conversation!'`
+        let audioUrl = ''
+
+        //单个实时评测
+        startbtn.onclick = function () {
+            if (!sid.value || !skey.value) {
+                alert('请输入密钥')
+                return
+            }
+            let recorder = new TencentSOE({
+                SecretId: sid.value,
+                SecretKey: skey.value,
+                success() {
+                    recorder.reset({
+                        WorkMode: 1, //需要实时评测或者出现评测超时的问题，可以使用流式评测来解决。
+                        EvalMode: 2, //0单词模式 1句子模式 2段落模式
+                    })
+                    recorder.start({
+                        RefText: str, //reftext为必填字段，可以在自由说模式（evalmode:3)下设置为'',否则会报错
+                        error: function (err) {
+                            console.log(err)
+                            result.innerHTML = err.msg.Error.Message
+                        },
+                        complete: function () {
+                            console.log('录音超过5分钟未停止触发此回调')
+                        },
+                        //单词实时，句子，段落，自由说模式可以在录音过程中返回实时结果
+                        //https://cloud.tencent.com/document/product/884/87828
+                        success: function (res) {
+                            console.log(res)
+                            result.innerHTML = JSON.stringify(res)
+                        },
+                    })
+                    stopbtn.onclick = function () {
+                        recorder.stop({
+                            success(res) {
+                                //输出测评结果
+                                //https://cloud.tencent.com/document/product/884/32605
+                                console.log(res)
+                                result.innerHTML = JSON.stringify(res)
+                                audioUrl = res.blob
+                                    ? URL.createObjectURL(res.blob)
+                                    : ''
+                            },
+                            error(err) {
+                                console.log(err)
+                            },
+                        })
+                    }
+                },
+                error(err) {
+                    console.log(err)
+                },
+            })
+        }
+
+        //单个录音文件评测
+        //uploadLocalFile是只能传一个文件。如果是多个文件需要你们自己来处理前端了，比如使用input的multiple来上传多个文件。然后使用node来请求，可以使用Promise和async/await来进行处理
+        uploadbtn.onclick = function () {
+            if (!sid.value || !skey.value) {
+                alert('请输入密钥')
+                return
+            }
+            let recorder = new TencentSOE({
+                SecretId: sid.value,
+                SecretKey: skey.value,
+                success() {
+                    recorder.reset({
+                        WorkMode: 1, //一次性评测，是一次性将音频数据上传进行评测。一般用于较短文件的评测。
+                        EvalMode: 2, //0单词模式 1句子模式 2段落模式
+                        ScoreCoeff: 2.5, //web sdk默认3.5，nodejs写的是1.0
+                    })
+                    recorder.uploadLocalFile({
+                        RefText: str,
+                        load() {
+                            console.log('文件加载完成')
+                        },
+                        success(res) {
+                            console.log(res) //输出测评结果
+                            result.innerHTML = JSON.stringify(res)
+                            //websdk的uploadLocalFile方法不会输出blob和cosBuketUrl，这里需要播放音频的话，需要服务端评测，根据传过来的base64数据转换成blob
+                            // audioUrl = res.blob
+                            //     ? URL.createObjectURL(res.blob)
+                            //     : ''
+                        },
+                        error(err) {
+                            console.log('err', err)
+                        },
+                    })
+                },
+            })
+        }
+
+        let isPlaying = false
+        listenBtn.onclick = function () {
+            const ele = document.getElementById('audio')
+            if (!audioUrl.length || !ele) {
+                alert('当前没有录音音频可播放')
+                return
+            }
+            //这部分的具体需要什么效果需要你们实现
+            if (isPlaying) {
+                ele.currentTime = 0
+                ele.pause()
+            } else {
+                ele.setAttribute('src', audioUrl)
+                ele.play()
+            }
+        }
+    </script>
+</body>
+
+</html>

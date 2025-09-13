@@ -1,0 +1,6 @@
+主账号
+SecretId: AKIDCE4h5JK7h3BJDs8A0by63mGVXLvUqysY
+SecretKey: Tpzvc6OSP8ew2tX2KODqFaGm5C6oOn01
+子账号
+SecretId: AKID51mJenkU1KPHvMZ5PXQ4Ur2yqdFfsvmR
+SecretKey: VtaSEvWzFHKBpGTTItGPMxJRM4Yo591e
